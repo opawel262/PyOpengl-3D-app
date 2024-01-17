@@ -338,8 +338,16 @@ class Cylinder(Entity):
             self.eulers = self.attached_to_object.eulers
 
         if self.is_falling_down:
-            if self.position[2] >= -0.2:
-                self.fall_down()
+            if 4.0 <= self.position[1] <= 5.7:
+                if self.position[2] >= -0.152:
+                    self.fall_down()
+            elif 5.8 < self.position[1] <= 6.45:
+                if self.position[2] >= -0.4:
+                    self.fall_down()
+
+            elif 6.45 < self.position[1] <= 7.9:
+                if self.position[2] >= -1.1:
+                    self.fall_down()
             else:
                 self.is_falling_down = False
 
@@ -369,11 +377,18 @@ class ShapeO(Entity):
             self.eulers = self.attached_to_object.eulers
 
         if self.is_falling_down:
-            if self.position[2] >= -0.2:
-                self.fall_down()
+            if 4.0 <= self.position[1] <= 5.7:
+                if self.position[2] >= -0.152:
+                    self.fall_down()
+            elif 5.8 < self.position[1] <= 6.45:
+                if self.position[2] >= -0.4:
+                    self.fall_down()
+
+            elif 6.45 < self.position[1] <= 7.9:
+                if self.position[2] >= -1.1:
+                    self.fall_down()
             else:
                 self.is_falling_down = False
-
 
 class ArmOtherRobot(Entity):
     def __init__(self, position: list[float], eulers: list[float], scale: list[float], attached_arm: Arm = None):
