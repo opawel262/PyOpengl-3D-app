@@ -11,6 +11,7 @@ positions_of_lights = [[9, 5, 0], [11.9, 6.7, 0], [11.9, 4, 0], [9, 4, 0], [1, 2
 
 ################### Model #####################################################
 
+
 class Entity:
     """ Represents a general object with a position and rotation applied"""
 
@@ -107,14 +108,8 @@ class FloorTile(Entity):
 
 class Rack(Entity):
 
-    def __init__(
-        self, position: list[float],
-        eulers: list[float],
-        scale: list[float]):
-
+    def __init__( self, position: list[float],eulers: list[float],  scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_RACK)
-        self.rotation_done = False  # Flag to track whether rotation has been done
-        self.attached_arm: Arm = None
 
     def update(self):
         pass
@@ -125,39 +120,70 @@ class Arm(Entity):
         super().__init__(position, eulers, scale, OBJECT_ARM)
         self.attached_arm: Arm = None
         self.rotation_speed = 0.05  # Adjust the rotation speed as needed
-        self.rotate = np.radians(245)
+        self.rotate = np.radians(0)
+        self.rotate_child = np.radians(0)
+        self.rotate_grand_child = np.radians(0)
         self.rotated = False
         self.add = 0.0
         self.added = False
         self.offset = [0.0, 0.0, 0.4]
-        self.rotate_by_player = 0.0
+        self.rotate_by_player = np.radians(0)
+        self.end_of_arm = False
 
     def update(self):
-        # Update the attached arm's position and orientation based on its parent arm
+
         if self.attached_arm:
+            self.attached_arm.rotate = self.rotate
             rotation_matrix = np.array([
                 [1, 0, 0],
-                [0, np.cos(-np.radians(self.rotate + self.rotate_by_player)), -np.sin(-np.radians(self.rotate + self.rotate_by_player))],
-                [0, np.sin(-np.radians(self.rotate + self.rotate_by_player)), np.cos(-np.radians(self.rotate + self.rotate_by_player))]
+                [0, np.cos(-np.radians(self.rotate_by_player + self.rotate)), -np.sin(-np.radians(self.rotate_by_player + self.rotate ))],
+                [0, np.sin(-np.radians(self.rotate_by_player + self.rotate )), np.cos(-np.radians(self.rotate_by_player + self.rotate ))]
             ])
-            self.eulers[0] += self.rotate_by_player
+            self.eulers[0] += self.rotate_by_player/2
 
             new_position = np.dot(rotation_matrix, self.offset) + self.position
             self.attached_arm.position = new_position.tolist()
-            # Ustaw rotację dziecka na podstawie rotacji rodzica
             self.attached_arm.eulers = [
-                self.eulers[0] + self.rotate * -2,
-                self.eulers[1] + self.rotate ,
-                self.eulers[2] + self.rotate * -3,
+                self.eulers[0] + self.rotate + self.rotate_child,
+                self.eulers[1] + self.rotate * 5,
+                self.eulers[2] + self.rotate / 2 + self.rotate_child
 
             ]
 
-            # Teraz zaktualizuj zamocowaną rękę
             self.attached_arm.update()
 
     def attach_arm(self, other_arm):
         self.attached_arm: Arm = other_arm
-        other_arm.offset = np.array([0.0, 0.0, 0.8])
+        self.update()
+
+
+class EndingOfArm(Entity):
+    def __init__(self, position: list[float], eulers: list[float], scale: list[float]):
+        super().__init__(position, eulers, scale, OBJECT_ENDING_OF_ARM)
+        self.attached_arm: Arm = None
+        self.offset = [0, 0.0, -0.45]
+
+
+    def update(self):
+        rotation_matrix = np.array([
+            [1, 0, 0],
+            [0, np.cos(-np.radians(self.attached_arm.eulers[0] * 2)),
+             -np.sin(-np.radians(self.attached_arm.eulers[0]* 2))],
+            [0, np.sin(-np.radians(self.attached_arm.eulers[0]* 2)),
+             np.cos(-np.radians(self.attached_arm.eulers[0]* 2))]
+        ])
+
+
+        new_position = np.dot(rotation_matrix, self.offset) + self.attached_arm.position
+        self.position = new_position.tolist()
+        self.eulers = [
+            self.attached_arm.eulers[0] * 2,
+            0,
+            0,
+        ]
+
+    def attach_to(self, arm: Arm):
+        self.attached_arm = arm
         self.update()
 
 
@@ -227,14 +253,15 @@ class StandingForRobot(Entity):
         if self.attached_arm:
             self.attached_arm.rotate = self.rotate
             # Update the attached arm's position and orientation based on the standing robot
-            if self.destinated_to:
+            if self.destinated_to and self.enable_auto_rotation:
                 self.position[0] += 0.01
                 if self.position[0] >= 12:
                     self.destinated_to = False
             else:
-                self.position[0] -= 0.01
-                if self.position[0] <= 7.6:
-                    self.destinated_to = True
+                if self.enable_auto_rotation:
+                    self.position[0] -= 0.01
+                    if self.position[0] <= 7.6:
+                        self.destinated_to = True
 
             self.attached_arm.position = [
                 self.position[0] ,
@@ -280,14 +307,92 @@ class Cat(Entity):
             scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_CAT)
         self.rotation_done = False  # Flag to track whether rotation has been done
+        self.is_falling_down = False
 
     def update(self):
         pass
 
 
+class Cylinder(Entity):
+    def __init__(
+            self, position: list[float],
+            eulers: list[float],
+            scale: list[float], ):
+        super().__init__(position, eulers, scale, OBJECT_SHAPE_O)
+        self.attached_to_object: Entity = None
+        self.is_falling_down = False
+
+    def fall_down(self):
+        self.position[2] -= 0.02
+
+    def attach_to(self, object: Entity):
+        self.attached_to_object = object
+        self.update()
+
+    def detach(self):
+        self.attached_to_object = None
+
+    def update(self):
+        if self.attached_to_object:
+            self.position = self.attached_to_object.position + [1, 1, 1]
+            self.eulers = self.attached_to_object.eulers
+
+        if self.is_falling_down:
+            if self.position[2] >= -0.2:
+                self.fall_down()
+            else:
+                self.is_falling_down = False
+
+
+class ShapeO(Entity):
+    def __init__(
+            self, position: list[float],
+            eulers: list[float],
+            scale: list[float], ):
+        super().__init__(position, eulers, scale, OBJECT_SHAPE_O)
+        self.attached_to_object: Entity = None
+        self.is_falling_down = False
+
+    def fall_down(self):
+        self.position[2] -= 0.02
+
+    def attach_to(self, object: Entity):
+        self.attached_to_object = object
+        self.update()
+
+    def detach(self):
+        self.attached_to_object = None
+
+    def update(self):
+        if self.attached_to_object:
+            self.position = self.attached_to_object.position + [1, 1, 1]
+            self.eulers = self.attached_to_object.eulers
+
+        if self.is_falling_down:
+            if self.position[2] >= -0.2:
+                self.fall_down()
+            else:
+                self.is_falling_down = False
+
+
+class ArmOtherRobot(Entity):
+    def __init__(self, position: list[float], eulers: list[float], scale: list[float], attached_arm: Arm = None):
+        super().__init__(position, eulers, scale, ARM_ROBOT)
+        self.rotation_done = False  # Flag to track whether rotation has been done
+        self.attached_arm: Arm = attached_arm
+
+    def update(self):
+        if self.attached_arm:
+            self.attached_arm.position = self.position
+            self.attached_arm.eulers = self.eulers
+            self.attached_arm.update()
+
+    def attach_arm(self):
+        pass
+
+
 class Player(Entity):
     """ A first person camera controller. """
-
 
     def __init__(self, position: list[float], eulers: list[float], scale: list[float]):
 
@@ -343,7 +448,6 @@ class Scene:
         and their interactions.
     """
 
-
     def __init__(self):
         """ Create a scene """
 
@@ -363,25 +467,32 @@ class Scene:
             Wall(position=[7.5, 4.35, 2.05], eulers=[90, 0, 0], scale=[24.1, 13, 5]) # sufit
             ]
         self.renderables[OBJECT_RACK] = [
-            # Rack(position=[1.5, 1.5, 0], eulers=[0, 0, 0], scale=[1, 1, 1]),
-            # Rack(position=[1.5, 3.5, 0], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            Rack(position=[10.9, 6, -1], eulers=[0, 0, 0], scale=[3.5, 0.4, 0.5]),
+            Rack(position=[10.9, 3, -1], eulers=[0, 0, 0], scale=[3.5, 0.4, 0.6]),
             ]
+
         self.renderables[OBJECT_TEXT] = [
             TextEntity(position=[14.68, 7, 0.5], eulers=[0, -180,90], scale=[1, 1, 1]),
             ]
         self.renderables[OBJECT_STANDING_FOR_ROBOT] = [
-            StandingForRobot(position=[12, 6.8, -0.15], eulers=[-90, -90, 0], scale=[2, 2, 2]),
-            StandingForRobot(position=[8, 4, -0.15], eulers=[-90, -90, 0], scale=[2, 2, 2]),
+            StandingForRobot(position=[12, 6.1, -0.4], eulers=[-90, -90, 0], scale=[2, 2, 2]),
+            StandingForRobot(position=[8, 3, -0.4], eulers=[-90, -90, 0], scale=[2, 2, 2]),
             ]
+        self.renderables[OBJECT_ENDING_OF_ARM] = [
+            EndingOfArm(position=[0, 0, 0.0], eulers=[0, 90, 0], scale=[0.2, 0.2, 0.3]),
+            EndingOfArm(position=[0, 0, 0.0], eulers=[0, 90, 0], scale=[0.2, 0.2, 0.3]),
+        ]
         self.renderables[OBJECT_ARM] = [
             Arm(position=[0, 0, 0], eulers=[0, 0, 0], scale=[0.6, 0.6, 0.6]),
             Arm(position=[0, 0, 0], eulers=[0, 0, 0], scale=[0.6, 0.6, 0.6]),
             Arm(position=[0, 0, 0], eulers=[0, 90, 0], scale=[0.6, 0.6, 0.6]),
             Arm(position=[0, 0, 0], eulers=[0, 0, 0], scale=[0.6, 0.6, 0.6]),
+            Arm(position=[0, 0, 0], eulers=[0, 0, 0], scale=[0.6, 0.6, 0.6]),
+
             ]
         self.renderables[OBJECT_TABLE] = [
-            Table(position=[10.2, 7.3, -1.5], eulers=[-90, 90, 0], scale=[1, 1, 1.2]),
-            Table(position=[10.2, 4.2, -1.5], eulers=[-90, 90, 0], scale=[1, 1, 1.2]),
+            Table(position=[10.2, 5.1, -1.5], eulers=[-90, 90, 0], scale=[1, 1, 1.2]),
+            Table(position=[10.2, 2.1, -1.5], eulers=[-90, 90, 0], scale=[1, 1, 1.2]),
 
         ]
         self.renderables[OBJECT_CHAIR] = [
@@ -395,8 +506,10 @@ class Scene:
             Cat(position=[13.5, 7.2, -0.75], eulers=[-90, 30, 0], scale=[0.025, 0.025, 0.025]),
             ]
 
+
         #  Create Robot 1
         first_arm = self.renderables[OBJECT_ARM][0]
+        self.renderables[OBJECT_STANDING_FOR_ROBOT][0].enable_auto_rotation = False
 
         self.renderables[OBJECT_STANDING_FOR_ROBOT][0].attach_arm(first_arm)
 
@@ -404,6 +517,12 @@ class Scene:
         # Create the second arm attached to the first arm
         second_arm = self.renderables[OBJECT_ARM][1]
         first_arm.attach_arm(second_arm)
+        ending_of_arm_1 = self.renderables[OBJECT_ENDING_OF_ARM][0]
+        ending_of_arm_2 = self.renderables[OBJECT_ENDING_OF_ARM][1]
+        ending_of_arm_1.attach_to(second_arm)
+        ending_of_arm_1.offset = [0, 0.04, -0.40]
+        ending_of_arm_2.attach_to(second_arm)
+        ending_of_arm_2.offset = [0, -0.04, -0.40]
 
 
         #  Create Robot 2
@@ -418,12 +537,28 @@ class Scene:
             LightEntity(position=positions_of_lights[1], eulers=[0, 0, 0], scale=[0.1, 0.1, 0.1]),
             LightEntity(position=positions_of_lights[2], eulers=[0, 0, 0], scale=[0.1, 0.1, 0.1]),
             ]
+        self.renderables[ARM_ROBOT] = [
+            ArmOtherRobot(position=[1, 1, 1], eulers=[0, 0, 0], scale=[0.2, 0.6, 0.2]),
+        ]
+        self.renderables[OBJECT_CYLINDER] = [
+            Cylinder(position=[10.2, 5.3, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            Cylinder(position=[9.1, 5.4, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            Cylinder(position=[12.6, 5.6, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            Cylinder(position=[9.9, 5.2, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+        ]
+        self.renderables[OBJECT_SHAPE_O] = [
+            ShapeO(position=[9.8, 5.6, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            ShapeO(position=[11.6, 5.4, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            ShapeO(position=[9.3, 5.7, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+            ShapeO(position=[12.4, 5.6, -0.15], eulers=[0, 0, 0], scale=[1, 1, 1]),
+        ]
+
 
         self.lights = [
-            Light(position=positions_of_lights[0], color=[0.7, 0, 0], strength=0.01),
-            Light(position=positions_of_lights[1], color=[0, 0, 1], strength=0.01),
-            Light(position=positions_of_lights[2], color=[0.7, 0, 0], strength=0.1),
-            Light(position=positions_of_lights[3], color=[0, 0, 1], strength=0.1),
+            Light(position=positions_of_lights[0], color=[1, 1, 1], strength=0.2),
+            Light(position=positions_of_lights[1], color=[1, 1, 1], strength=0.2),
+            Light(position=positions_of_lights[2], color=[1, 1, 1], strength=0.2),
+            Light(position=positions_of_lights[3], color=[1, 1, 1], strength=0.1),
             Light(position=positions_of_lights[4], color=[0.7, 1, 1], strength=0.1),
             Light(position=positions_of_lights[5], color=[0.7, 1, 1], strength=0),
             Light(position=positions_of_lights[6], color=[0.7, 1, 1], strength=0),
@@ -470,7 +605,8 @@ class App:
 
     def __init__(self, screenWidth, screenHeight):
         """ Set up the program """
-
+        self.grabbed = False
+        self.grabbed_object = None
         self.screenWidth = screenWidth
         self.screenHeight = screenHeight
 
@@ -481,6 +617,7 @@ class App:
         self.set_up_input_systems()
 
         self.mainLoop()
+
 
     def set_up_pygame(self) -> None:
         """ Set up the pygame environment """
@@ -574,59 +711,90 @@ class App:
             combo += 8
 
         # 1
-        if keys[pg.K_1] and keys[pg.K_DOWN]:
+        elif keys[pg.K_1] and keys[pg.K_DOWN]:
             if self.scene.lights[0].strength > 0:
                 self.scene.lights[0].strength -= 0.01
 
-        if keys[pg.K_1] and keys[pg.K_UP]:
+        elif keys[pg.K_1] and keys[pg.K_UP]:
             if self.scene.lights[0].strength < 1:
                 self.scene.lights[0].strength += 0.01
 
         # 2
-        if keys[pg.K_2] and keys[pg.K_DOWN]:
+        elif keys[pg.K_2] and keys[pg.K_DOWN]:
             if self.scene.lights[1].strength > 0:
                 self.scene.lights[1].strength -= 0.01
 
-        if keys[pg.K_2] and keys[pg.K_UP]:
+        elif keys[pg.K_2] and keys[pg.K_UP]:
             if self.scene.lights[1].strength < 1:
                 self.scene.lights[1].strength += 0.01
 
         # 3
-        if keys[pg.K_3] and keys[pg.K_DOWN]:
+        elif keys[pg.K_3] and keys[pg.K_DOWN]:
             if self.scene.lights[2].strength > 0:
                 self.scene.lights[2].strength -= 0.01
 
-        if keys[pg.K_3] and keys[pg.K_UP]:
+        elif keys[pg.K_3] and keys[pg.K_UP]:
             if self.scene.lights[2].strength < 1:
                 self.scene.lights[2].strength += 0.01
 
         # 4
 
-        if keys[pg.K_4] and keys[pg.K_DOWN]:
+        elif keys[pg.K_4] and keys[pg.K_DOWN]:
             if self.scene.lights[3].strength > 0:
                 self.scene.lights[3].strength -= 0.01
 
-        if keys[pg.K_4] and keys[pg.K_UP]:
+        elif keys[pg.K_4] and keys[pg.K_UP]:
             if self.scene.lights[3].strength < 1:
                 self.scene.lights[3].strength += 0.01
 
         # 5
 
-        if keys[pg.K_5] and keys[pg.K_DOWN]:
+        elif keys[pg.K_5] and keys[pg.K_DOWN]:
             if self.scene.lights[4].strength > 0:
                 self.scene.lights[4].strength -= 0.01
 
-        if keys[pg.K_5] and keys[pg.K_UP]:
+        elif keys[pg.K_5] and keys[pg.K_UP]:
             if self.scene.lights[4].strength < 1:
                 self.scene.lights[4].strength += 0.01
 
-        if keys[pg.K_r] and keys[pg.K_UP]:
-            self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].enable_auto_rotation = False
+        elif keys[pg.K_r] and keys[pg.K_UP]:
             self.scene.renderables[OBJECT_ARM][0].rotate_by_player += 1
-        if keys[pg.K_r] and keys[pg.K_DOWN]:
-            self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].enable_auto_rotation = False
-            self.scene.renderables[OBJECT_ARM][0].rotate = 0
-            self.scene.renderables[OBJECT_ARM][0].rotate_by_player -= 1
+        elif keys[pg.K_r] and keys[pg.K_DOWN]:
+            if self.scene.renderables[OBJECT_ENDING_OF_ARM][0].position[2] >= self.scene.renderables[OBJECT_TABLE][0].position[2] + 1.35:
+                self.scene.renderables[OBJECT_ARM][0].rotate_by_player -= 1
+
+        elif keys[pg.K_r] and keys[pg.K_LEFT]:
+            self.scene.renderables[OBJECT_ARM][0].rotate_child += 1
+        elif keys[pg.K_r] and keys[pg.K_RIGHT]:
+            if self.scene.renderables[OBJECT_ENDING_OF_ARM][0].position[2] >= self.scene.renderables[OBJECT_TABLE][0].position[2] + 1.35:
+                self.scene.renderables[OBJECT_ARM][0].rotate_child -= 1
+        elif keys[pg.K_UP]:
+            if self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].position[0] >= 7.6:
+                self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].position[0] += 0.01
+        elif keys[pg.K_DOWN]:
+            if self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].position[0] <= 13.6:
+                self.scene.renderables[OBJECT_STANDING_FOR_ROBOT][0].position[0] -= 0.01
+
+        elif keys[pg.K_SPACE]:
+            if not self.grabbed:
+                for i in PICKABLE_OBJECTS:
+                    for j, object in enumerate(self.scene.renderables[i]):
+                        if abs(object.position[0] - self.scene.renderables[OBJECT_ENDING_OF_ARM][0].position[0]) <= 0.1 \
+                            and abs(object.position[1] - self.scene.renderables[OBJECT_ENDING_OF_ARM][0].position[1]) <= 0.1 \
+                            and abs(object.position[2] - self.scene.renderables[OBJECT_ENDING_OF_ARM][0].position[2]) <= 0.1:
+                            object.attach_to(self.scene.renderables[OBJECT_ENDING_OF_ARM][1])
+                            self.grabbed = True
+                            self.grabbed_object = object
+                            self.scene.renderables[OBJECT_ENDING_OF_ARM][0].offset = [0, -0.03, -0.40]
+                            self.scene.renderables[OBJECT_ENDING_OF_ARM][1].offset = [0, 0.03, -0.40]
+
+            else:
+                self.scene.renderables[OBJECT_ENDING_OF_ARM][0].offset = [0, -0.04, -0.40]
+                self.scene.renderables[OBJECT_ENDING_OF_ARM][1].offset = [0, 0.04, -0.40]
+                self.grabbed_object.is_falling_down = True
+                self.grabbed_object.detach()
+                self.grabbed = False
+                self.grabbed_object = None
 
         if combo in self.walk_offset_lookup:
 
@@ -703,7 +871,7 @@ class Renderer:
         self.meshes: dict[int, Mesh] = {
             OBJECT_FLOOR_TILE: ObjMesh("models/floortile.obj"),
             OBJECT_WALL: ObjMesh("models/wall.obj"),
-            OBJECT_RACK: ObjMesh("models/rack.obj"),
+            OBJECT_RACK: ObjMesh("models/armrobot.obj"),
             OBJECT_TEXT: ObjMesh("models/text.obj"),
             OBJECT_TABLE: ObjMesh("models/table.obj"),
             OBJECT_STANDING_FOR_ROBOT: ObjMesh("models/standing_for_robot.obj"),
@@ -712,12 +880,16 @@ class Renderer:
             OBJECT_PLAYER: ObjMesh("models/player.obj"),
             OBJECT_CHAIR: ObjMesh("models/chair.obj"),
             OBJECT_CAT: ObjMesh("models/cat1.obj"),
+            ARM_ROBOT: ObjMesh("models/armrobot.obj"),
+            OBJECT_ENDING_OF_ARM: ObjMesh("models/floortile.obj"),
+            OBJECT_CYLINDER: ObjMesh("models/cylinder.obj"),
+            OBJECT_SHAPE_O: ObjMesh("models/object_shape_o.obj"),
         }
 
         self.materials: dict[int, Material] = {
             OBJECT_FLOOR_TILE: Material("gfx/floortile.jpg"),
             OBJECT_WALL: Material("gfx/wall.jpg"),
-            OBJECT_RACK: Material("gfx/wood.jpeg"),
+            OBJECT_RACK: Material("gfx/metal.jpg"),
             OBJECT_TEXT: Material("gfx/robot_texture.jpg"),
             OBJECT_TABLE: Material("gfx/blackmarble.jpg"),
             OBJECT_STANDING_FOR_ROBOT: Material("gfx/robot_texture.jpg"),
@@ -726,6 +898,10 @@ class Renderer:
             OBJECT_PLAYER: Material("gfx/wood.jpeg"),
             OBJECT_CHAIR: Material("gfx/wood.jpeg"),
             OBJECT_CAT: Material("gfx/Cat_diffuse.jpg"),
+            ARM_ROBOT: Material("gfx/robot2_texture.jpg"),
+            OBJECT_ENDING_OF_ARM: Material("gfx/robot2_texture.jpg"),
+            OBJECT_SHAPE_O: Material("gfx/robot2_texture.jpg"),
+            OBJECT_CYLINDER: Material("gfx/robot2_texture.jpg"),
         }
 
         self.shader = create_shader("shaders/vertex.glsl", "shaders/fragment.glsl")
@@ -849,7 +1025,7 @@ class Mesh:
     def destroy(self):
         
         glDeleteVertexArrays(1, (self.vao,))
-        glDeleteBuffers(1,(self.vbo,))
+        glDeleteBuffers(1, (self.vbo,))
 
 
 class ObjMesh(Mesh):
