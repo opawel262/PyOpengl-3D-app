@@ -9,8 +9,6 @@ from constants import *
 positions_of_lights = [[9, 5, 0], [11.9, 6.7, 0], [11.9, 4, 0], [9, 4, 0], [1, 2, 2], [15.1, 15.2, 1.05],
                        [15.1, 15.1, 1.05], [15.1, 15.1, 1.05]]
 
-################### Model #####################################################
-
 
 class Entity:
     """ Represents a general object with a position and rotation applied"""
@@ -43,7 +41,6 @@ class Entity:
         based on its position, rotation, and scaling.
         """
 
-        # Inicjalizacja macierzy transformacji jako macierzy jednostkowej
         model_transform = pyrr.matrix44.create_identity(dtype=np.float32)
 
         model_transform = pyrr.matrix44.create_identity(dtype=np.float32)
@@ -72,15 +69,12 @@ class Entity:
                 dtype=np.float32
             )
             model_transform = np.dot(model_transform, rotation_matrix_x)
-        # Skalowanie
 
-        # Przesunięcie na podstawie pozycji jednostki
         translation_matrix = pyrr.matrix44.create_from_translation(
             vec=self.position,
             dtype=np.float32
         )
 
-        # Kolejność operacji: skalowanie -> obrót -> translacja
         model_transform = pyrr.matrix44.multiply(model_transform, scale_matrix)
 
         model_transform = pyrr.matrix44.multiply(model_transform, translation_matrix)
@@ -216,7 +210,6 @@ class TextEntity(Entity):
 class LightEntity(Entity):
     def __init__(self, position: list[float], eulers: list[float], scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_SPHERE)
-        self.rotation_done = False  # Flag to track whether rotation has been done
 
     def update(self):
         pass
@@ -228,7 +221,6 @@ class Table(Entity):
             eulers: list[float],
             scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_TABLE)
-        self.rotation_done = False  # Flag to track whether rotation has been done
 
     def update(self):
         pass
@@ -294,7 +286,6 @@ class Chair(Entity):
             eulers: list[float],
             scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_CHAIR)
-        self.rotation_done = False  # Flag to track whether rotation has been done
 
     def update(self):
         pass
@@ -306,8 +297,6 @@ class Cat(Entity):
             eulers: list[float],
             scale: list[float]):
         super().__init__(position, eulers, scale, OBJECT_CAT)
-        self.rotation_done = False  # Flag to track whether rotation has been done
-        self.is_falling_down = False
 
     def update(self):
         pass
@@ -614,7 +603,6 @@ class Scene:
         self.camera.eulers[1] = min(89, max(-89, self.camera.eulers[1]))
 
 
-################### Control ###################################################
 class App:
     """ The main program """
 
