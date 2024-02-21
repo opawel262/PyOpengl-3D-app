@@ -30,7 +30,7 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/your-username/3d-robot-interaction.git
+   git clone https://github.com/opawel262/PyOpengl-3D-app.git
    
 2. **Navigate to the project directory**
    ```bash
