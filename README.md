@@ -44,3 +44,4 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
    python main.py
 
 Learning materials for PyOpenGL: https://www.youtube.com/watch?v=LCK1qdp_HhQ&list=PLn3eTxaOtL2PDnEVNwOgZFm5xYPr4dUoR
+                                 https://pyopengl.sourceforge.net/documentation/index.html
