@@ -8,6 +8,7 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
 - [Dependencies](#dependencies)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Learning materials](#Learning materials)
 
 ## Features
 
@@ -43,5 +44,6 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
    ```bash
    python main.py
 
-Learning materials for PyOpenGL: https://www.youtube.com/watch?v=LCK1qdp_HhQ&list=PLn3eTxaOtL2PDnEVNwOgZFm5xYPr4dUoR
-                                 https://pyopengl.sourceforge.net/documentation/index.html
+## Learning materials
+- https://www.youtube.com/watch?v=LCK1qdp_HhQ&list=PLn3eTxaOtL2PDnEVNwOgZFm5xYPr4dUoR
+- https://pyopengl.sourceforge.net/documentation/index.html
