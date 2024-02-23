@@ -8,7 +8,7 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
 - [Dependencies](#dependencies)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Learning materials](#Learning materials)
+- [Learning materials](#learning-materials)
 
 ## Features
 
