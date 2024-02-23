@@ -42,3 +42,5 @@ This project is a 3D graphics application written in Python using PyOpenGL and P
 1. **Run 3d program**
    ```bash
    python main.py
+
+Learning materials for PyOpenGL: https://www.youtube.com/watch?v=LCK1qdp_HhQ&list=PLn3eTxaOtL2PDnEVNwOgZFm5xYPr4dUoR
